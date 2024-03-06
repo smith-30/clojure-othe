@@ -2,13 +2,11 @@
 
 (defn on-command
   "Viewからのコマンド通知を処理するハンドラ."
-  [cmdline]
-  (let [cmd (first cmdline)
-        pos (second cmdline)]
-    (cond
-      (= cmd :move) (play-move pos)
-      (= cmd :exit) (System/exit 0)
-      :else nil)))
+  [[cmd pos]]
+  (cond
+    (= cmd :move) (play-move pos)
+    (= cmd :exit) (System/exit 0)
+    :else nil))
 
 (defn -main
   "entry point"
