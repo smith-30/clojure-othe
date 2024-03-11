@@ -12,7 +12,9 @@
 
 (defn col-from-pos [pos] (mod pos b-size))
 (defn row-from-pos [pos] (quot pos b-size))
-(defn pos-from-rowcol [r c] (+ (* r b-size) c))
+(defn pos-from-rowcol
+  "row & col から pos を計算"
+  [r c] (+ (* r b-size) c))
 
 (def dirs #{:n :ne :e :se :s :sw :w :nw})
 
@@ -99,3 +101,49 @@
    (some
     (fn [pl] (clamping? brd pl bw))
     (all-poslines pos))))
+
+(def initial-oprs
+  "ゲームの初期状態(:b :wが2個ずつ)を表す opr のマップ"
+  (let [cntr (dec (quot b-size 2))
+        pos (pos-from-rowcol cntr cntr)]
+    {pos :b
+     ((successor :se) pos) :b
+     ((successor :e) pos) :w
+     ((successor :s) pos) :w}))
+
+(defn- board-manipulator
+  "opr のマップに基づいて、盤面を変更するラムダ"
+  [oprs]
+  (fn [pos st] (if-let [s (oprs pos)]
+                 s; then
+                 st; else
+                 )))
+
+; map-indexed で brd の [index elem(board の状態)] が manip に適用される
+(defn- manipulated-board
+  "manipulator を盤面に対して呼んだ後の新しい盤面"
+  [brd manip]
+  (vec (map-indexed manip brd)))
+
+(let [blank (vec (repeat (- last-pos first-pos) :free))
+      manip (board-manipulator initial-oprs)]
+  (manipulated-board blank manip))
+
+(defn- make-oprs
+  "posline に関して、bw にとっての opr を計算する"
+  [brd posline bw]
+  (reduce (fn [m pos] (assoc m pos bw)) {}
+          (take-while
+           (fn [pos] (opponent? brd pos bw))
+           posline)))
+
+(defn- make-all-oprs
+  "pos における全 posline に関して、bw にとっての opr を計算する"
+  [brd pos bw]
+  (apply merge
+         (cons {pos bw}
+               (for [posline
+                 (filter
+                  (fn [pos] (clamping? brd pos bw))
+                  (all-poslines pos))]
+                 (make-oprs brd posline bw)))))
