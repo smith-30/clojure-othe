@@ -5,4 +5,5 @@
             :url "https://www.eclipse.org/legal/epl-2.0/"}
   :dependencies [[org.clojure/clojure "1.11.1"]]
   :repl-options {:init-ns othe.core}
-  :plugins [[jonase/eastwood "1.4.2"]])
+  :plugins [[jonase/eastwood "1.4.2"]]
+  :main othe.core)

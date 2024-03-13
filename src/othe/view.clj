@@ -1,7 +1,8 @@
 (ns othe.view
   (:require [clojure.string :refer [join]]
             [othe.model :refer [b-size count-blacks count-whites first-row
-                                is-game-over? last-row retrieve-board]]))
+                                is-black-turn? is-game-over? last-row
+                                pos-from-rowcol retrieve-board]]))
 
 (def code-a 97) ; a の文字コード
 (def code-curly 123) ; z の次の文字コード
@@ -39,7 +40,7 @@
 (defn- score-str
   "スコア文字列"
   [bs ws]
-  (let [s (str "BLACK(x): p:" bs ", WHITE(⚪︎):" ws)]
+  (let [s (str "BLACK(x):" bs ", WHITE(⚪︎):" ws)]
     (format "%50s" s))); 文字列を50文字の幅で右寄せするフォーマット指定
 
 (defn- winner-str
@@ -54,9 +55,19 @@
   "盤面を表示"
   []
   (print col-header-str)
+  (println)
   (dorun
    (map println
         (board-strs-with-row (retrieve-board)))))
+
+(defn init-view
+  "View を初期化。handler はユーザコマンドのハンドラ"
+  [handler]
+  (println "Welcome to the Battle zone!")
+  (println "'x' is Black and '⚪︎' is White.")
+  (println "Input the column name first, like 'a1' or 'b2'")
+  (println "Just hit Enter to exit.")
+  (def command-handler handler))
 
 (defn on-state-changed
   "Model変化時のハンドラ"
@@ -70,14 +81,59 @@
       (redraw-board)
       (when (is-game-over?)
         (println (str "GAME OVER: " (winner-str bs ws)))
-        #_{:clj-kondo/ignore [:unresolved-symbol]}
         (command-handler [:exit])))))
 
-(defn init-view
-  "View を初期化。handler はユーザコマンドのハンドラ"
-  [handler]
-  (println "Welcome to the Battle zone!")
-  (println "'x' is Black and '⚪︎' is White.")
-  (println "Input the column name first, like 'a1' or 'b2'")
-  (println "Just hit Enter to exit.")
-  (def command-handler handler))
+(defn- read-cmd
+  "stdin から、コマンドを読む"
+  []
+  (print (if (is-black-turn?)
+           "It's BLACK's turn: "
+           "Hey WHITE, your turn: "))
+  (flush)
+  (read-line))
+
+
+(defn- col-from-line
+  "ユーザ入力から桁を解読"
+  [line]
+  (.indexOf col-headers (subs line 0 1)))
+
+(defn- row-from-line
+  "ユーザ入力から行を解読"
+  [line]
+  (dec (read-string (subs line 1))))
+
+(defn- pos-from-line
+  "ユーザ入力からposを解読。不正な入力値なら nil"
+  [line]
+  (when (re-find #"^[a-h][1-8]" line)
+    (let [r (row-from-line line)
+          c (col-from-line line)]
+      (pos-from-rowcol r c))))
+
+(defn- wait-for-cmd
+  "ユーザ入力を待ち、nil か pos を返す"
+  []
+  (loop [line (read-cmd)]
+    (if (empty?  line)
+      (println "Exiting....")
+      (if-let [pos (pos-from-line line)]
+        pos
+        (do
+          (print "Input should be like a1 or b2. Or Enter to exit:")
+          (flush)
+          (recur (read-cmd)))))))
+
+(defn- view-thread
+  "ユーザ入力を監視するスレッド。入力が空だったら終了"
+  []
+  (loop [pos (wait-for-cmd)]
+    (when pos
+      (command-handler [:move pos])
+      (recur (wait-for-cmd))))
+  (command-handler [:exit]))
+
+(defn start-ui
+  "ユーザとのインタラクションを開始"
+  []
+  (.start (Thread. view-thread)))
