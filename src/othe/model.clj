@@ -143,7 +143,89 @@
   (apply merge
          (cons {pos bw}
                (for [posline
-                 (filter
-                  (fn [pos] (clamping? brd pos bw))
-                  (all-poslines pos))]
+                     (filter
+                      (fn [pos] (clamping? brd pos bw))
+                      (all-poslines pos))]
                  (make-oprs brd posline bw)))))
+
+(defn- opponent [bw] (if (= bw :b) :w :b))
+
+(defn- has-pos-to-play?
+  "bw にとって、打てる場所はあるか?"
+  [brd bw]
+  (not-empty
+   (filter
+    (fn [pos] (playable? brd pos bw))
+    all-pos)))
+
+(defn- next-player
+  "bw の次は誰の番か決める"
+  [bw brd]
+  (let [nbw (opponent bw)]
+    (if (has-pos-to-play? brd nbw) nbw bw)))
+
+(defn init-game
+  "新しいゲームを始める"
+  [ob]
+  (dosync
+   (let [blank (vec
+                (repeat (- last-pos first-pos) :free))
+         manip
+         (board-manipulator initial-oprs)]
+     (ref-set board
+              (manipulated-board blank manip)))
+   (ref-set player :b)
+   (def observer ob))
+  (observer))
+
+(def board (ref []))
+(def player (ref nil))
+
+(defn play-move
+  "pos へ打つ"
+  [pos]
+  (dosync
+   (if (not (playable? @board pos @player))
+     (observer :err)
+     (do
+       (let
+        [manip
+         (board-manipulator
+          (make-all-oprs @board pos @player))]
+         (alter board manipulated-board manip))
+       (alter player next-player @board)
+       (observer)))))
+
+(defn- retrieve-game-state
+  "ゲーム状態(黒番なら:b、白番なら:w、ゲーム終了なら:over)"
+  []
+  (let [brd @board
+        bw @player]
+    (if (empty?
+         (filter
+          (fn [pos] (free? brd pos))
+          all-pos))
+      :over
+      bw)))
+
+(defn- occupacy
+  "bw の陣地の広さ"
+  [brd bw]
+  (count
+   (filter
+    (fn [pos] (= (brd pos) bw))
+    all-pos)))
+
+(defn is-game-over?
+  []
+  (= (retrieve-game-state) :over))
+
+(defn is-black-turn?
+  []
+  (= (retrieve-game-state) :b))
+
+(defn count-blacks [] (occupacy @board :b))
+
+(defn count-whites [] (occupacy @board :w))
+
+(defn retrieve-board [] @board)

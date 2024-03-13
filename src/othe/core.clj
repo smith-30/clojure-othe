@@ -1,4 +1,6 @@
-(ns othe.core)
+(ns othe.core
+  (:require [othe.model :refer [init-game play-move]]
+            [othe.view :refer [init-view on-state-changed]]))
 
 (defn on-command
   "Viewからのコマンド通知を処理するハンドラ."
@@ -12,5 +14,4 @@
   "entry point"
   [& args]
   (init-view on-command)
-  (init-game on-state-changed)
-  (start-ui))
+  (init-game on-state-changed))
