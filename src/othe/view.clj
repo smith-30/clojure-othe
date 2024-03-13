@@ -11,13 +11,13 @@
         (map (comp str char)
              (range code-a code-curly))))
 (def col-header-str
-  (str " " (join " " col-headers)))
+  (str "  " (join " " col-headers)))
 
 (defn- st-str
   "マスの状態を表す文字列"
   [st]
   (cond (= st :b) "x"
-        (= st :w) "⚪︎"
+        (= st :w) "○"
         :else " "))
 
 (defn- board-strs
